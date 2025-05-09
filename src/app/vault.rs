@@ -1,50 +1,48 @@
-use crate::app::crypt;
-use serde::{Deserialize, Serialize};
-use serde_json;
-use std::path::Path;
+use egui::Theme;
 
-use super::entry::Entry;
+use crate::ui::entries;
+use crate::ui::login;
 
-const MAGIC: &str = "MAGIC";
+use crate::data::entry;
 
-#[derive(Serialize, Deserialize)]
-struct VaultFile {
-    magic: String,
-    entries: Vec<Entry>,
+pub enum Screen {
+    Login,
+    Entry,
 }
 
-pub fn load(path: &str, name: &str, password: &str) -> Result<Vec<Entry>, String> {
-    let file_path = Path::new(path).join(format!("{name}.vault"));
-    let file_path_str = file_path
-        .to_str()
-        .ok_or("Failed to construct vault file path")?;
+pub struct Vault {
+    // State
+    pub screen: Screen,
 
-    let decrypted_data = crypt::load_encrypted(file_path_str, password)?;
+    // Data
+    pub entries: Vec<entry::Entry>,
+}
 
-    let vault: VaultFile = serde_json::from_slice(&decrypted_data)
-        .map_err(|e| format!("Failed to parse vault: {}", e))?;
-
-    if vault.magic != MAGIC {
-        return Err("Invalid vault file or incorrect password".to_string());
+impl Default for Vault {
+    fn default() -> Self {
+        Self {
+            entries: entry::get_test_entries(),
+            screen: Screen::Login,
+        }
     }
-
-    Ok(vault.entries)
 }
 
-/// Saves entries to a vault file, encrypting them with the given password.
-pub fn save(path: &str, name: &str, password: &str, entries: &[Entry]) -> Result<(), String> {
-    let file_path = Path::new(path).join(format!("{name}.vault"));
-    let file_path_str = file_path
-        .to_str()
-        .ok_or("Failed to construct vault file path")?;
+impl Vault {
+    pub fn new(_cc: &eframe::CreationContext<'_>) -> Self {
+        Default::default()
+    }
+}
 
-    let vault = VaultFile {
-        magic: MAGIC.to_string(),
-        entries: entries.to_vec(),
-    };
-
-    let json_data =
-        serde_json::to_vec(&vault).map_err(|e| format!("Failed to serialize vault: {}", e))?;
-
-    crypt::save_encrypted(&json_data, file_path_str, password)
+impl eframe::App for Vault {
+    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.set_theme(Theme::Dark);
+        egui::CentralPanel::default().show(ctx, |ui| match self.screen {
+            Screen::Login => {
+                login::draw_login_screen(ui, self);
+            }
+            Screen::Entry => {
+                entries::draw_entry_screen(ui, self);
+            }
+        });
+    }
 }
