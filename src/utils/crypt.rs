@@ -1,6 +1,4 @@
 use ring::{aead, pbkdf2, rand};
-use std::fs;
-use std::io::Read;
 use std::num::NonZeroU32;
 
 const SALT_LEN: usize = 16;
@@ -107,23 +105,4 @@ pub fn decrypt(encrypted_data: &[u8], password: &str) -> Result<Vec<u8>, String>
         .map_err(|_| "Decryption failed (invalid password or corrupted data)".to_string())?;
 
     Ok(decrypted_data.to_vec())
-}
-
-// Save encrypted data to a file
-pub fn save_encrypted(data: &[u8], path: &str, password: &str) -> Result<(), String> {
-    let encrypted_data = encrypt(data, password)?;
-
-    fs::write(path, encrypted_data)
-        .map_err(|e| format!("Failed to write encrypted data to file: {}", e))
-}
-
-// Load and decrypt data from a file
-pub fn load_encrypted(path: &str, password: &str) -> Result<Vec<u8>, String> {
-    let mut file = fs::File::open(path).map_err(|e| format!("Failed to open file: {}", e))?;
-
-    let mut encrypted_data = Vec::new();
-    file.read_to_end(&mut encrypted_data)
-        .map_err(|e| format!("Failed to read file: {}", e))?;
-
-    decrypt(&encrypted_data, password)
 }

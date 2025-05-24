@@ -4,11 +4,45 @@ use crate::data::entry;
 use egui::{Color32, CornerRadius, Frame, Label, RichText, Sense, Stroke, TextEdit, Ui, Vec2};
 
 // Public function to draw the entry screen
-pub fn draw_entry_screen(ui: &mut Ui, _vault: &mut vault::Vault) {
+pub fn draw_entry_screen(ui: &mut Ui, vault: &mut vault::Vault) {
     ui.vertical_centered(|ui| {
+        if ui
+            .button(RichText::new("💾 Save").color(Color32::from_rgb(0, 169, 255)))
+            .clicked()
+        {
+            if let Some(user) = &vault.vault_user {
+                if let Err(e) =
+                    entry::save_entries(&vault.entries, &user.name, vault.vault_key.as_str())
+                {
+                    eprintln!("Failed to save entries: {}", e);
+                }
+            }
+        }
+
+        ui.add_space(16.0);
+
+        // Logout button
+        if ui
+            .button(RichText::new("🚪 Logout").color(Color32::from_rgb(255, 100, 100)))
+            .clicked()
+        {
+            vault.entries.clear();
+            vault.vault_user = None;
+            vault.vault_key.clear();
+            vault.screen = vault::Screen::Login;
+            return;
+        }
+
         // Title with larger font and spacing
         ui.add_space(20.0);
-        ui.heading(RichText::new("Password Entries").size(32.0).strong());
+        ui.heading(
+            RichText::new(format!(
+                "{}'s Vault",
+                vault.vault_user.as_ref().unwrap().name
+            ))
+            .size(32.0)
+            .strong(),
+        );
         ui.add_space(8.0);
 
         // Divider
@@ -24,26 +58,9 @@ pub fn draw_entry_screen(ui: &mut Ui, _vault: &mut vault::Vault) {
         ui.add_space(16.0);
     });
 
-    // Display search box at top
-    ui.horizontal(|ui| {
-        ui.label(
-            RichText::new("🔍")
-                .size(18.0)
-                .color(Color32::from_rgb(170, 170, 170)),
-        );
-        ui.add_sized(
-            [ui.available_width(), 32.0],
-            TextEdit::singleline(&mut String::new())
-                .hint_text("Search entries...")
-                .text_color(Color32::from_rgb(255, 255, 255))
-                .margin(Vec2::new(8.0, 4.0)),
-        );
-    });
-    ui.add_space(16.0);
-
     // Display each entry as a card
     ui.vertical(|ui| {
-        for entry in &mut _vault.entries {
+        for entry in &mut vault.entries {
             ui.add_space(8.0);
             draw_entry_card(ui, entry);
         }
@@ -78,7 +95,17 @@ pub fn draw_entry_screen(ui: &mut Ui, _vault: &mut vault::Vault) {
 
         // Handle click event for adding a new entry
         if add_response.clicked() {
-            println!("Adding new entry");
+            // Add new entry
+            vault.entries.push(entry::Entry::default());
+
+            // Save entries to file
+            if let Some(user) = &vault.vault_user {
+                if let Err(e) =
+                    entry::save_entries(&vault.entries, &user.name, vault.vault_key.as_str())
+                {
+                    eprintln!("Failed to save entries: {}", e);
+                }
+            }
         }
     });
 }
@@ -229,8 +256,6 @@ fn draw_entry_edit_mode(ui: &mut Ui, entry: &mut entry::Entry) {
                     .clicked()
                 {
                     entry.edit_mode = false;
-                    // Here you would save the entry data to the vault
-                    println!("Saving entry: {}", entry.service);
                 }
 
                 if ui
@@ -238,8 +263,6 @@ fn draw_entry_edit_mode(ui: &mut Ui, entry: &mut entry::Entry) {
                     .clicked()
                 {
                     entry.edit_mode = false;
-                    // Here you would revert changes
-                    println!("Cancelled editing: {}", entry.service);
                 }
             });
         });
