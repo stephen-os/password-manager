@@ -44,12 +44,12 @@ pub fn show_create_popup(ctx: &Context, app: &mut vault::Vault) {
                         app.new_user_name.clear();
                         app.new_user_password.clear();
                         app.creation_error = None;
-                        app.show_create_popup = false;
+                        app.popup = vault::Popup::None;
                     }
                 }
 
                 if ui.button("Cancel").clicked() {
-                    app.show_create_popup = false;
+                    app.popup = vault::Popup::None;
                     app.creation_error = None;
                 }
             });
@@ -81,7 +81,7 @@ pub fn show_login_popup(ctx: &Context, app: &mut vault::Vault) {
                                 app.entries = entries;
                                 app.screen = vault::Screen::Entry;
                                 app.login_error = None;
-                                app.show_login_popup = false;
+                                app.popup = vault::Popup::None;
 
                                 // Update last accessed
                                 for user in &mut app.users {
@@ -101,16 +101,69 @@ pub fn show_login_popup(ctx: &Context, app: &mut vault::Vault) {
 
                     // Close button
                     if ui.button("Close").clicked() {
-                        app.show_login_popup = false;
+                        app.popup = vault::Popup::None;
                         app.login_error = None;
 
                         // Clear vault key and selected user
                         app.vault_key.clear();
                         app.vault_user = None;
                     }
+
+                    if ui.button("Delete").clicked() {
+                        app.popup = vault::Popup::Delete;
+                    }
                 });
             });
     } else {
-        app.show_login_popup = false;
+        app.popup = vault::Popup::None;
+    }
+}
+
+pub fn show_delete_popup(ctx: &Context, app: &mut vault::Vault) {
+    if let Some(user) = &app.vault_user {
+        let user_name = user.name.clone();
+
+        egui::Window::new("Delete Vault")
+            .collapsible(false)
+            .resizable(false)
+            .anchor(egui::Align2::CENTER_CENTER, egui::Vec2::ZERO)
+            .show(ctx, |ui| {
+                ui.label(format!("Confirm password to delete '{}'", user_name));
+                ui.add(egui::TextEdit::singleline(&mut app.vault_key).password(true));
+
+                if let Some(error) = &app.login_error {
+                    ui.colored_label(Color32::RED, error);
+                }
+
+                ui.horizontal(|ui| {
+                    if ui.button("Delete").clicked() {
+                        match crate::data::entry::load_entries(&user_name, &app.vault_key) {
+                            Ok(_) => {
+                                // Remove vault
+                                app.users.retain(|u| u.name != user_name);
+                                user::save_users(&app.users);
+
+                                // Clear state
+                                app.vault_user = None;
+                                app.vault_key.clear();
+                                app.popup = vault::Popup::None;
+                                app.login_error = None;
+                            }
+                            Err(e) => {
+                                app.login_error = Some(e);
+                            }
+                        }
+                    }
+
+                    if ui.button("Cancel").clicked() {
+                        app.popup = vault::Popup::None;
+                        app.login_error = None;
+                        app.vault_user = None;
+                        app.vault_key.clear();
+                    }
+                });
+            });
+    } else {
+        app.popup = vault::Popup::None;
     }
 }

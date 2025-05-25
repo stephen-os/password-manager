@@ -12,13 +12,17 @@ pub enum Screen {
     Entry,
 }
 
+pub enum Popup {
+    None,
+    Create,
+    Login,
+    Delete,
+}
+
 pub struct Vault {
     // State
     pub screen: Screen,
-
-    // intermediate
-    pub show_create_popup: bool,
-    pub show_login_popup: bool,
+    pub popup: Popup,
 
     pub login_error: Option<String>,
 
@@ -40,10 +44,7 @@ impl Default for Vault {
         Self {
             // State
             screen: Screen::Login,
-
-            // intermediate
-            show_create_popup: false,
-            show_login_popup: false,
+            popup: Popup::None,
 
             login_error: None,
 
@@ -77,12 +78,11 @@ impl eframe::App for Vault {
             Screen::Login => {
                 login::draw_login_screen(ui, self);
 
-                if self.show_create_popup {
-                    popup::show_create_popup(ctx, self);
-                }
-
-                if self.show_login_popup {
-                    popup::show_login_popup(ctx, self);
+                match self.popup {
+                    Popup::None => {}
+                    Popup::Create => popup::show_create_popup(ctx, self),
+                    Popup::Login => popup::show_login_popup(ctx, self),
+                    Popup::Delete => popup::show_delete_popup(ctx, self),
                 }
             }
             Screen::Entry => {

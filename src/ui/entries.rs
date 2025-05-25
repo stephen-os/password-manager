@@ -1,27 +1,15 @@
 use crate::app::vault;
 use crate::data::entry;
 
-use egui::{Color32, CornerRadius, Frame, Label, RichText, Sense, Stroke, TextEdit, Ui, Vec2};
+use egui::{Color32, Frame, Label, RichText, ScrollArea, Sense, Stroke, TextEdit, Ui, Vec2};
 
 // Public function to draw the entry screen
 pub fn draw_entry_screen(ui: &mut Ui, vault: &mut vault::Vault) {
     ui.vertical_centered(|ui| {
-        if ui
-            .button(RichText::new("💾 Save").color(Color32::from_rgb(0, 169, 255)))
-            .clicked()
-        {
-            if let Some(user) = &vault.vault_user {
-                if let Err(e) =
-                    entry::save_entries(&vault.entries, &user.name, vault.vault_key.as_str())
-                {
-                    eprintln!("Failed to save entries: {}", e);
-                }
-            }
-        }
-
-        ui.add_space(16.0);
-
         // Logout button
+
+        ui.add_space(10.0);
+
         if ui
             .button(RichText::new("🚪 Logout").color(Color32::from_rgb(255, 100, 100)))
             .clicked()
@@ -34,7 +22,7 @@ pub fn draw_entry_screen(ui: &mut Ui, vault: &mut vault::Vault) {
         }
 
         // Title with larger font and spacing
-        ui.add_space(20.0);
+        ui.add_space(10.0);
         ui.heading(
             RichText::new(format!(
                 "{}'s Vault",
@@ -58,65 +46,92 @@ pub fn draw_entry_screen(ui: &mut Ui, vault: &mut vault::Vault) {
         ui.add_space(16.0);
     });
 
+    let mut save_entries = false;
+
     // Display each entry as a card
-    ui.vertical(|ui| {
-        for entry in &mut vault.entries {
-            ui.add_space(8.0);
-            draw_entry_card(ui, entry);
-        }
-        ui.add_space(16.0);
-
-        // Add new entry card (styled like the vault cards from login)
-        let frame = Frame::new()
-            .fill(Color32::from_rgb(42, 42, 42))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(0, 169, 255)))
-            .corner_radius(CornerRadius::same(8))
-            .inner_margin(12.0)
-            .outer_margin(0.0);
-
-        let add_response = frame
-            .show(ui, |ui| {
-                // Use available width
-                ui.set_width(ui.available_width());
-
-                ui.vertical_centered(|ui| {
-                    ui.add_space(6.0);
-                    ui.add(Label::new(
-                        RichText::new("+ Add New Entry")
-                            .size(16.0)
-                            .color(Color32::from_rgb(170, 170, 170)),
-                    ));
-                    ui.add_space(6.0);
-                });
-            })
-            .response
-            .interact(Sense::click())
-            .on_hover_cursor(egui::CursorIcon::PointingHand);
-
-        // Handle click event for adding a new entry
-        if add_response.clicked() {
-            // Add new entry
-            vault.entries.push(entry::Entry::default());
-
-            // Save entries to file
-            if let Some(user) = &vault.vault_user {
-                if let Err(e) =
-                    entry::save_entries(&vault.entries, &user.name, vault.vault_key.as_str())
-                {
-                    eprintln!("Failed to save entries: {}", e);
+    ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                for entry in &mut vault.entries {
+                    ui.add_space(8.0);
+                    draw_entry_card(ui, entry, &mut save_entries);
                 }
-            }
+
+                ui.add_space(16.0);
+
+                // Add new entry card (styled like the vault cards from login)
+                let frame = Frame::new()
+                    .fill(Color32::from_rgb(42, 42, 42))
+                    .stroke(Stroke::new(1.0, Color32::from_rgb(255, 165, 0)))
+                    .inner_margin(12.0)
+                    .outer_margin(0.0);
+
+                let add_response = frame
+                    .show(ui, |ui| {
+                        // Use available width
+                        ui.set_width(ui.available_width());
+
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(6.0);
+                            ui.add(Label::new(
+                                RichText::new("+ Add New Entry")
+                                    .size(16.0)
+                                    .color(Color32::from_rgb(170, 170, 170)),
+                            ));
+                            ui.add_space(6.0);
+                        });
+                    })
+                    .response
+                    .interact(Sense::click())
+                    .on_hover_cursor(egui::CursorIcon::PointingHand);
+
+                // Handle click event for adding a new entry
+                if add_response.clicked() {
+                    // Add new entry
+                    vault.entries.push(entry::Entry::default());
+
+                    // Save entries to file
+                    if let Some(user) = &vault.vault_user {
+                        if let Err(e) = entry::save_entries(
+                            &vault.entries,
+                            &user.name,
+                            vault.vault_key.as_str(),
+                        ) {
+                            eprintln!("Failed to save entries: {}", e);
+                        }
+                    }
+                }
+            });
+        });
+
+    // Remove entries marked for deletion
+    vault.entries.retain(|entry| {
+        if entry.should_delete {
+            save_entries = true;
+            false // Remove this entry
+        } else {
+            true // Keep this entry
         }
     });
+
+    if save_entries {
+        if let Some(user) = &vault.vault_user {
+            if let Err(e) =
+                entry::save_entries(&vault.entries, &user.name, vault.vault_key.as_str())
+            {
+                eprintln!("Failed to save entries: {}", e);
+            }
+        }
+    }
 }
 
 // Function to create the entry card UI
-fn draw_entry_card(ui: &mut Ui, entry: &mut entry::Entry) {
+fn draw_entry_card(ui: &mut Ui, entry: &mut entry::Entry, save_entries: &mut bool) {
     // Card frame styling
     let frame = Frame::new()
         .fill(Color32::from_rgb(42, 42, 42))
-        .stroke(Stroke::new(1.0, Color32::from_rgb(0, 169, 255)))
-        .corner_radius(CornerRadius::same(8))
+        .stroke(Stroke::new(1.0, Color32::from_rgb(255, 165, 0)))
         .inner_margin(12.0)
         .outer_margin(0.0);
 
@@ -125,7 +140,7 @@ fn draw_entry_card(ui: &mut Ui, entry: &mut entry::Entry) {
         ui.set_width(ui.available_width());
 
         if entry.edit_mode {
-            draw_entry_edit_mode(ui, entry);
+            draw_entry_edit_mode(ui, entry, save_entries);
         } else {
             draw_entry_view_mode(ui, entry);
         }
@@ -159,7 +174,7 @@ fn draw_entry_view_mode(ui: &mut Ui, entry: &mut entry::Entry) {
                 // Spacer to push edit button to the right
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui
-                        .button(RichText::new("✏️ Edit").color(Color32::from_rgb(170, 170, 170)))
+                        .button(RichText::new("✏ Edit").color(Color32::from_rgb(170, 170, 170)))
                         .clicked()
                     {
                         entry.edit_mode = true;
@@ -167,10 +182,21 @@ fn draw_entry_view_mode(ui: &mut Ui, entry: &mut entry::Entry) {
                 });
             });
 
-            ui.add(Label::new(
-                RichText::new(format!("Email: {}", entry.email))
-                    .color(Color32::from_rgb(170, 170, 170)),
-            ));
+            ui.horizontal(|ui| {
+                ui.add(Label::new(
+                    RichText::new(format!("Email: {}", entry.email))
+                        .color(Color32::from_rgb(170, 170, 170)),
+                ));
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui
+                        .button(RichText::new("🗑 Delete").color(Color32::from_rgb(255, 100, 100)))
+                        .clicked()
+                    {
+                        entry.should_delete = true;
+                    }
+                });
+            });
 
             // Password field with masked/revealed option
             ui.horizontal(|ui| {
@@ -212,7 +238,7 @@ fn draw_entry_view_mode(ui: &mut Ui, entry: &mut entry::Entry) {
 }
 
 // Function to display entry in edit mode
-fn draw_entry_edit_mode(ui: &mut Ui, entry: &mut entry::Entry) {
+fn draw_entry_edit_mode(ui: &mut Ui, entry: &mut entry::Entry, save_entries: &mut bool) {
     ui.vertical(|ui| {
         ui.horizontal(|ui| {
             ui.label(RichText::new("Service:").color(Color32::from_rgb(170, 170, 170)));
@@ -256,6 +282,7 @@ fn draw_entry_edit_mode(ui: &mut Ui, entry: &mut entry::Entry) {
                     .clicked()
                 {
                     entry.edit_mode = false;
+                    *save_entries = true;
                 }
 
                 if ui

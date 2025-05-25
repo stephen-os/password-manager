@@ -1,19 +1,14 @@
 use crate::app::vault;
 
-use egui::{Color32, CornerRadius, Frame, Label, RichText, Sense, Stroke, Ui, Vec2};
+use egui::{Color32, Frame, Label, RichText, ScrollArea, Sense, Stroke, Ui, Vec2};
 
 pub fn draw_login_screen(ui: &mut Ui, app: &mut vault::Vault) {
     ui.vertical_centered(|ui| {
-        // Title with larger font and spacing
         ui.add_space(20.0);
-        ui.heading(RichText::new("Password Vault").size(32.0).strong());
+        ui.heading(RichText::new("Vaults").size(32.0).strong());
         ui.add_space(8.0);
-
-        // Divider
         ui.separator();
         ui.add_space(16.0);
-
-        // Secondary heading for vault selection
         ui.label(
             RichText::new("Select a vault to unlock")
                 .size(18.0)
@@ -22,43 +17,43 @@ pub fn draw_login_screen(ui: &mut Ui, app: &mut vault::Vault) {
         ui.add_space(16.0);
     });
 
-    // Display each vault as a card with available width
-    ui.vertical(|ui| {
-        draw_vault_cards(ui, app);
-        ui.add_space(16.0);
+    // Wrap this section in a scrollable area
+    ScrollArea::vertical()
+        .auto_shrink([false; 2])
+        .show(ui, |ui| {
+            ui.vertical(|ui| {
+                draw_vault_cards(ui, app);
 
-        // Add new vault card (replacing the button)
-        let frame = Frame::new()
-            .fill(Color32::from_rgb(42, 42, 42))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(0, 169, 255)))
-            .corner_radius(CornerRadius::same(8))
-            .inner_margin(12.0)
-            .outer_margin(0.0);
+                ui.add_space(16.0);
 
-        let add_response = frame
-            .show(ui, |ui| {
-                // Use available width
-                ui.set_width(ui.available_width());
+                let frame = Frame::new()
+                    .fill(Color32::from_rgb(42, 42, 42))
+                    .stroke(Stroke::new(1.0, Color32::from_rgb(255, 165, 0)))
+                    .inner_margin(12.0)
+                    .outer_margin(0.0);
 
-                ui.vertical_centered(|ui| {
-                    ui.add_space(6.0);
-                    ui.add(Label::new(
-                        RichText::new("+ Add New Vault")
-                            .size(16.0)
-                            .color(Color32::from_rgb(170, 170, 170)),
-                    ));
-                    ui.add_space(6.0);
-                });
-            })
-            .response
-            .interact(Sense::click())
-            .on_hover_cursor(egui::CursorIcon::PointingHand);
+                let add_response = frame
+                    .show(ui, |ui| {
+                        ui.set_width(ui.available_width());
+                        ui.vertical_centered(|ui| {
+                            ui.add_space(6.0);
+                            ui.add(Label::new(
+                                RichText::new("+ Add New Vault")
+                                    .size(16.0)
+                                    .color(Color32::from_rgb(170, 170, 170)),
+                            ));
+                            ui.add_space(6.0);
+                        });
+                    })
+                    .response
+                    .interact(Sense::click())
+                    .on_hover_cursor(egui::CursorIcon::PointingHand);
 
-        // Handle click event for adding a new vault
-        if add_response.clicked() {
-            app.show_create_popup = true;
-        }
-    });
+                if add_response.clicked() {
+                    app.popup = vault::Popup::Create;
+                }
+            });
+        });
 }
 
 // Function to create the vault card UI
@@ -69,8 +64,7 @@ fn draw_vault_cards(ui: &mut Ui, app: &mut vault::Vault) {
         ui.add_space(8.0);
         let frame = Frame::new()
             .fill(Color32::from_rgb(42, 42, 42))
-            .stroke(Stroke::new(1.0, Color32::from_rgb(0, 169, 255)))
-            .corner_radius(CornerRadius::same(8))
+            .stroke(Stroke::new(1.0, Color32::from_rgb(255, 165, 0)))
             .inner_margin(12.0)
             .outer_margin(0.0);
 
@@ -123,19 +117,10 @@ fn draw_vault_cards(ui: &mut Ui, app: &mut vault::Vault) {
             .interact(Sense::click())
             .on_hover_cursor(egui::CursorIcon::PointingHand);
 
-        if hover_response.hovered() {
-            // Make the card slightly larger on hover
-            ui.ctx().animate_value_with_time(
-                ui.id().with("hover_animation"),
-                1.02, // Scale factor - 2% larger
-                0.1,  // Animation time in seconds
-            );
-        }
-
         // Handle click event
         if hover_response.clicked() {
             app.login_error = None;
-            app.show_login_popup = true;
+            app.popup = vault::Popup::Login;
 
             // Set the selected user
             app.vault_user = Some(vault_data.clone());

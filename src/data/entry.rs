@@ -14,18 +14,20 @@ pub struct Entry {
     pub description: String,
     pub show_password: bool,
     pub edit_mode: bool,
+    pub should_delete: bool,
 }
 
 // Default entry
 impl Default for Entry {
     fn default() -> Self {
         Entry {
-            service: String::new(),
-            email: String::new(),
-            password: String::new(),
-            description: String::new(),
+            service: "Example Service".to_string(),
+            email: "example@gmail.com".to_string(),
+            password: "password123".to_string(),
+            description: "This is a sample entry.".to_string(),
             show_password: false,
             edit_mode: false,
+            should_delete: false,
         }
     }
 }
