@@ -27,7 +27,7 @@ impl User {
 }
 
 pub fn get_user_data_path() -> PathBuf {
-    let mut path = dirs::data_dir().expect("Failed to get data directory");
+    let mut path = dirs::data_local_dir().unwrap_or_else(|| PathBuf::from("."));
     path.push("password-manager");
 
     if !path.exists() {
