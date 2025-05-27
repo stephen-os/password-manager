@@ -6,7 +6,9 @@ A simple, secure, and offline-first password manager built with Rust and [`egui`
 
 ## 🧭 Overview
 
-<img src="assets/app.png" alt="App Icon" width="256" height="256" />
+<div style="text-align: center;">
+  <img src="assets/app.png" alt="App Icon" width="256" height="256" />
+</div>
 
 This desktop application is built for Windows using native Rust technologies. It features:
 
